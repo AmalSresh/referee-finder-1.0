@@ -3,10 +3,11 @@ from requests_ratelimiter import LimiterSession
 import sys
 import os
 from dotenv import load_dotenv, dotenv_values
-import time
+
 load_dotenv()
 
 search_url = "https://api.semanticscholar.org/graph/v1/paper/search/match?query="
+#snippet_url = "https://api.semanticscholar.org/graph/v1/snippet/search?query={snippet}&limit=1"
 #test list of preprints
 papers = ["Campus-based genomic surveillance uncovers early emergence of a future dominant A(H3N2) influenza clade", "Post-sampling degradation of viral RNA in wastewater impacts the quality of PCR-based concentration estimates", "Emetine dihydrochloride inhibits Chikungunya virus nsP2 helicase and shows antiviral activity in the cell culture and mouse model of virus infection", "Diagnostic Accuracy of Swab-Based Molecular Tests for Tuberculosis Using Novel Near-Point-Of-Care Platforms: A Multi-Country Evaluation", "Neutralisation and Antibody-Dependent Cellular Cytotoxicity Functions Map to Distinct SARS-CoV-2 Spike Subdomains and Vaccine Platforms"]
 
@@ -15,33 +16,14 @@ papers = ["Campus-based genomic surveillance uncovers early emergence of a futur
 reference_info = {}
 header = {"x-api-key": os.getenv('SEMANTIC_SCHOLAR_API_KEY')}
 session_semantic = LimiterSession(
-        per_second=1
+        per_minute=30,
+        burst=1
     )
-def update_references(response, paper):
-    reference_info.update({paper: {"authors": []}})
-    print(f"successfully fetched referenced paper for: {paper}")
-    references = response.json()['references']
-    for reference in references:
-        print(reference)
-        #if reference['paperId'] != None:
-        paperid = reference['paperId']
-        url = f"https://api.semanticscholar.org/graph/v1/paper/{paperid}?fields=authors"
-        response = session_semantic.get(url)
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            print(f"An error occurred while fetching authors for {paper}: {e}")
-            return
-        references = response.json()['authors']
-        time.sleep(2)  
-        for author in references:
-           reference_info[paper]["authors"].append({author['name'], author['authorId']})
 
-def main():  
-    
+def main():
     for paper in papers[0:1]:
         #get info for each paper
-        response = session_semantic.get(search_url + paper)
+        response = session_semantic.get(search_url + paper, headers=header)
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
@@ -52,14 +34,18 @@ def main():
         paperid = response.json()['data'][0]['paperId']
         url = f"https://api.semanticscholar.org/graph/v1/paper/{paperid}?fields=references"
         
-        response = session_semantic.get(url)
+        response = session_semantic.get(url, headers=header)
+        print(response.json()['references'])
+        snippet = "Bayesian modeling, two-deme compartmental SIR, H3 epitope-based modeling"
+        snippet_url = f"https://api.semanticscholar.org/graph/v1/snippet/search?query={snippet}&limit=5"
+
+        response = session_semantic.get(snippet_url, headers=header)
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            print(f"An error occurred while fetching references for {paper}: {e}") 
-        time.sleep(1)
-        update_references(response, paper)
-    print(reference_info)
-    
+            print(f"An error occurred while fetching references for {paper}: {e}")
+        for result in response.json()['data']:
+            print(result['paper']['title']) 
+        
 if __name__ == "__main__":
     main()

@@ -23,6 +23,7 @@ def get_info(paper, reference_link, response):
     for reference in response.json()['referenced_works']:
         # Convert reference link to API URL
         reference_link = reference[:8] + 'api.' + reference[8:]
+        print(reference_link)
         response = requests.get(reference_link)
         try:
             response.raise_for_status()
@@ -53,7 +54,7 @@ def main():
         response = requests.get(preprint_link)
 
         get_info(paper, preprint_link, response)
-    print(reference_info)
+    #print(reference_info)
 
 if __name__ == "__main__":
     main()
